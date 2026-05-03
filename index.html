@@ -2461,83 +2461,32 @@
         function exitFullscreen() {
           if (!isFullscreen || isZoomingOut) return;
           isZoomingOut = true;
+          skipUntilPast = true;
           iframe.style.pointerEvents = 'none';
-
-          // Keep container fixed fullscreen
-          container.style.position = 'fixed';
-          container.style.top = '0';
-          container.style.left = '0';
-          container.style.width = '100vw';
-          container.style.height = '100vh';
-          container.style.zIndex = '99999';
+          // Restore container positioning
+          container.style.position = 'relative';
+          container.style.top = '';
+          container.style.left = '';
+          container.style.zIndex = '';
           video.style.display = '';
 
-          // Unlock body scroll so user can scroll to drive the exit animation
-          document.body.classList.remove('ballsite-active');
-
-          // Record exit start position and define scroll distance for the animation
-          var exitStart = window.pageYOffset || document.documentElement.scrollTop;
-          var exitDistance = window.innerHeight * 1.8; // 1.8 viewport heights of scroll
-          var fullW = window.innerWidth;
-          var fullH = window.innerHeight;
-          var targetW = cardW();
-          var targetH = cardH();
-          var targetR = cardR();
-          var animFrame = null;
-
-          function onExitScroll() {
-            if (animFrame) cancelAnimationFrame(animFrame);
-            animFrame = requestAnimationFrame(function () {
-              var currentScroll = window.pageYOffset || document.documentElement.scrollTop;
-              var rawP = (currentScroll - exitStart) / exitDistance;
-              var p = Math.min(1, Math.max(0, rawP));
-              var t = easeInOutCubic(p);
-
-              // Shrink from fullscreen to card (centered)
-              var w = lerp(fullW, targetW, t);
-              var h = lerp(fullH, targetH, t);
-              var r = lerp(0, targetR, t);
-              var centerX = (fullW - w) / 2;
-              var centerY = (fullH - h) / 2;
-
-              container.style.width = w + 'px';
-              container.style.height = h + 'px';
-              container.style.borderRadius = r + 'px';
-              container.style.top = centerY + 'px';
-              container.style.left = centerX + 'px';
-              container.style.boxShadow = '0 ' + (20 * t) + 'px ' + (60 * t) + 'px rgba(0,0,0,' + (0.5 * t) + ')';
-
-              // Fade out iframe, show dark bg
-              if (p > 0.75) {
-                var fadeP = (p - 0.75) / 0.25;
-                container.style.opacity = String(lerp(1, 0, fadeP));
-              } else {
-                container.style.opacity = '1';
-              }
-
-              // Animation complete
-              if (p >= 1) {
-                window.removeEventListener('scroll', onExitScroll);
-                // Clean up positioning
-                container.style.position = 'relative';
-                container.style.top = '';
-                container.style.left = '';
-                container.style.zIndex = '';
-                container.style.opacity = '1';
-                container.style.width = targetW + 'px';
-                container.style.height = targetH + 'px';
-                container.style.borderRadius = targetR + 'px';
-                isFullscreen = false;
-                isZoomingOut = false;
-                skipUntilPast = true;
-                if (st) st.enable();
-              }
-            });
-          }
-
-          window.addEventListener('scroll', onExitScroll, { passive: true });
-          // Trigger once immediately in case already scrolled
-          onExitScroll();
+          // Animate shrink back
+          gsap.to(container, {
+            width: cardW(),
+            height: cardH(),
+            borderRadius: cardR(),
+            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+            duration: 1.2,
+            ease: 'power3.inOut',
+            onComplete: function () {
+              document.body.classList.remove('ballsite-active');
+              isFullscreen = false;
+              isZoomingOut = false;
+              // Re-enable ScrollTrigger and scroll past zone
+              if (st) st.enable();
+              window.scrollTo({ top: zone.offsetTop + zone.offsetHeight + 50, behavior: 'smooth' });
+            }
+          });
         }
 
         window.addEventListener('message', function (e) {
