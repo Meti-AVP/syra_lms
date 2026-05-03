@@ -2463,28 +2463,62 @@
           isZoomingOut = true;
           skipUntilPast = true;
           iframe.style.pointerEvents = 'none';
-          // Restore container positioning
-          container.style.position = 'relative';
-          container.style.top = '';
-          container.style.left = '';
-          container.style.zIndex = '';
+          
+          // Keep container FIXED during the shrink animation to prevent scroll jump
+          // Just update dimensions smoothly while fixed
+          container.style.position = 'fixed';
+          container.style.top = '0';
+          container.style.left = '0';
+          container.style.width = '100vw';
+          container.style.height = '100vh';
           video.style.display = '';
 
-          // Animate shrink back
+          // Calculate the final scroll target BEFORE unfixing
+          var targetScroll = zone.offsetTop + zone.offsetHeight + 50;
+
+          // Phase 1: Smoothly shrink while centered and fixed
           gsap.to(container, {
             width: cardW(),
             height: cardH(),
             borderRadius: cardR(),
+            top: '50%',
+            left: '50%',
+            xPercent: -50,
+            yPercent: -50,
             boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
             duration: 1.2,
             ease: 'power3.inOut',
             onComplete: function () {
-              document.body.classList.remove('ballsite-active');
-              isFullscreen = false;
-              isZoomingOut = false;
-              // Re-enable ScrollTrigger and scroll past zone
-              if (st) st.enable();
-              window.scrollTo({ top: zone.offsetTop + zone.offsetHeight + 50, behavior: 'smooth' });
+              // Phase 2: Fade out the card
+              gsap.to(container, {
+                opacity: 0,
+                duration: 0.4,
+                ease: 'power2.in',
+                onComplete: function () {
+                  // Now safely unfix and reposition
+                  document.body.classList.remove('ballsite-active');
+                  container.style.position = 'relative';
+                  container.style.top = '';
+                  container.style.left = '';
+                  container.style.zIndex = '';
+                  gsap.set(container, { xPercent: 0, yPercent: 0 });
+                  
+                  // Scroll to past the zone
+                  window.scrollTo(0, targetScroll);
+                  
+                  // Fade container back in at card size
+                  gsap.to(container, {
+                    opacity: 1,
+                    duration: 0.3,
+                    delay: 0.1,
+                    onComplete: function() {
+                      isFullscreen = false;
+                      isZoomingOut = false;
+                      if (st) st.enable();
+                    }
+                  });
+                }
+              });
             }
           });
         }
