@@ -1,0 +1,22 @@
+# Logs
+*.log
+*.err
+proxy1.log
+proxy1.err
+proxy2.log
+proxy2.err
+
+# Python
+*.py
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# System
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp

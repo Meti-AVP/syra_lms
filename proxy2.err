@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "e:\epwinds\ball-site\proxy.py", line 47, in <module>
+    with socketserver.TCPServer(("127.0.0.1", PORT), ProxyHandler) as httpd:
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.10_3.10.3056.0_x64__qbz5n2kfra8p0\lib\socketserver.py", line 452, in __init__
+    self.server_bind()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.10_3.10.3056.0_x64__qbz5n2kfra8p0\lib\socketserver.py", line 466, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [WinError 10048] Only one usage of each socket address (protocol/network address/port) is normally permitted
