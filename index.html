@@ -2461,66 +2461,83 @@
         function exitFullscreen() {
           if (!isFullscreen || isZoomingOut) return;
           isZoomingOut = true;
-          skipUntilPast = true;
           iframe.style.pointerEvents = 'none';
-          
-          // Keep container FIXED during the shrink animation to prevent scroll jump
-          // Just update dimensions smoothly while fixed
+
+          // Keep container fixed fullscreen
           container.style.position = 'fixed';
           container.style.top = '0';
           container.style.left = '0';
           container.style.width = '100vw';
           container.style.height = '100vh';
+          container.style.zIndex = '99999';
           video.style.display = '';
 
-          // Calculate the final scroll target BEFORE unfixing
-          var targetScroll = zone.offsetTop + zone.offsetHeight + 50;
+          // Unlock body scroll so user can scroll to drive the exit animation
+          document.body.classList.remove('ballsite-active');
 
-          // Phase 1: Smoothly shrink while centered and fixed
-          gsap.to(container, {
-            width: cardW(),
-            height: cardH(),
-            borderRadius: cardR(),
-            top: '50%',
-            left: '50%',
-            xPercent: -50,
-            yPercent: -50,
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-            duration: 1.2,
-            ease: 'power3.inOut',
-            onComplete: function () {
-              // Phase 2: Fade out the card
-              gsap.to(container, {
-                opacity: 0,
-                duration: 0.4,
-                ease: 'power2.in',
-                onComplete: function () {
-                  // Now safely unfix and reposition
-                  document.body.classList.remove('ballsite-active');
-                  container.style.position = 'relative';
-                  container.style.top = '';
-                  container.style.left = '';
-                  container.style.zIndex = '';
-                  gsap.set(container, { xPercent: 0, yPercent: 0 });
-                  
-                  // Scroll to past the zone
-                  window.scrollTo(0, targetScroll);
-                  
-                  // Fade container back in at card size
-                  gsap.to(container, {
-                    opacity: 1,
-                    duration: 0.3,
-                    delay: 0.1,
-                    onComplete: function() {
-                      isFullscreen = false;
-                      isZoomingOut = false;
-                      if (st) st.enable();
-                    }
-                  });
-                }
-              });
-            }
-          });
+          // Record exit start position and define scroll distance for the animation
+          var exitStart = window.pageYOffset || document.documentElement.scrollTop;
+          var exitDistance = window.innerHeight * 1.8; // 1.8 viewport heights of scroll
+          var fullW = window.innerWidth;
+          var fullH = window.innerHeight;
+          var targetW = cardW();
+          var targetH = cardH();
+          var targetR = cardR();
+          var animFrame = null;
+
+          function onExitScroll() {
+            if (animFrame) cancelAnimationFrame(animFrame);
+            animFrame = requestAnimationFrame(function () {
+              var currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+              var rawP = (currentScroll - exitStart) / exitDistance;
+              var p = Math.min(1, Math.max(0, rawP));
+              var t = easeInOutCubic(p);
+
+              // Shrink from fullscreen to card (centered)
+              var w = lerp(fullW, targetW, t);
+              var h = lerp(fullH, targetH, t);
+              var r = lerp(0, targetR, t);
+              var centerX = (fullW - w) / 2;
+              var centerY = (fullH - h) / 2;
+
+              container.style.width = w + 'px';
+              container.style.height = h + 'px';
+              container.style.borderRadius = r + 'px';
+              container.style.top = centerY + 'px';
+              container.style.left = centerX + 'px';
+              container.style.boxShadow = '0 ' + (20 * t) + 'px ' + (60 * t) + 'px rgba(0,0,0,' + (0.5 * t) + ')';
+
+              // Fade out iframe, show dark bg
+              if (p > 0.75) {
+                var fadeP = (p - 0.75) / 0.25;
+                container.style.opacity = String(lerp(1, 0, fadeP));
+              } else {
+                container.style.opacity = '1';
+              }
+
+              // Animation complete
+              if (p >= 1) {
+                window.removeEventListener('scroll', onExitScroll);
+                // Clean up positioning
+                container.style.position = 'relative';
+                container.style.top = '';
+                container.style.left = '';
+                container.style.zIndex = '';
+                container.style.opacity = '1';
+                container.style.width = targetW + 'px';
+                container.style.height = targetH + 'px';
+                container.style.borderRadius = targetR + 'px';
+                isFullscreen = false;
+                isZoomingOut = false;
+                skipUntilPast = true;
+                if (st) st.enable();
+              }
+            });
+          }
+
+          window.addEventListener('scroll', onExitScroll, { passive: true });
+          // Trigger once immediately in case already scrolled
+          onExitScroll();
         }
 
         window.addEventListener('message', function (e) {
